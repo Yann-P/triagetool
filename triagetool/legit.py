@@ -1,8 +1,6 @@
 """Is this advisory a real vulnerability, given the project's security boundary?"""
 
-import argparse
-
-from triagetool import host
+from triagetool import host, render
 
 THREAT_MODEL = ["documented", "partial", "missing"]
 IN_SCOPE = ["yes", "no", "unclear"]
@@ -76,10 +74,6 @@ SCHEMA = {
 }
 
 
-def add_args(parser: argparse.ArgumentParser) -> None:
-    host.add_args(parser)
-
-
 def verdict(chain: str, in_scope: str) -> str:
     if chain in ("broken", "defect_only") or in_scope == "no":
         return "invalid"
@@ -135,5 +129,58 @@ def validate(raw: dict, target: str, work) -> dict:
     }
 
 
-def main(args: argparse.Namespace) -> None:
-    host.triage(args, PROMPT, SCHEMA, validate)
+TONES = {
+    "valid": "good",
+    "invalid": "bad",
+    "uncertain": "warn",
+    "documented": "good",
+    "partial": "warn",
+    "missing": "bad",
+    "yes": "good",
+    "no": "bad",
+    "unclear": "warn",
+    "complete": "good",
+    "broken": "bad",
+    "defect_only": "bad",
+    "unverified": "warn",
+    "holds": "good",
+    "fails": "bad",
+}
+
+
+def cell(result: dict) -> str:
+    return render.badge(result["verdict"], TONES)
+
+
+def html(result: dict, advisory: dict) -> str:
+    steps = [
+        [str(n), render.linkify(s["claim"]), render.badge(s["status"], TONES), render.refs(advisory, s["evidence"])]
+        for n, s in enumerate(result["steps"], 1)
+    ]
+    questions = result["open_questions"]
+    sources = result["threat_model_sources"]
+    return (
+        render.kv_table(
+            [
+                ("verdict", render.badge(result["verdict"], TONES)),
+                (
+                    "threat model",
+                    render.badge(result["threat_model"], TONES) + (render.refs(advisory, sources) if sources else ""),
+                ),
+                ("attacker", render.linkify(result["attacker"] or "-")),
+                ("gain", render.linkify(result["gain"] or "-")),
+                ("in scope", render.badge(result["in_scope"], TONES)),
+                ("chain", render.badge(result["chain"], TONES)),
+            ]
+        )
+        + "<h3>Steps</h3>"
+        + (render.table(["#", "claim", "status", "evidence"], steps) if steps else "<p>none</p>")
+        + "<h3>Open questions</h3>"
+        + (
+            "<ul>" + "".join(f"<li>{render.linkify(q)}</li>" for q in questions) + "</ul>"
+            if questions
+            else "<p>none</p>"
+        )
+        + "<h3>Rationale</h3>"
+        + render.prose(result["rationale"])
+    )
