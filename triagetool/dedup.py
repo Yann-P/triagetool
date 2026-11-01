@@ -2,8 +2,9 @@
 
 import re
 import subprocess
+from html import escape
 
-from triagetool import host
+from triagetool import host, render
 
 RELATIONS = ["same_bug", "same_root_cause", "related", "distinct"]
 SHA_RE = re.compile(r"[0-9a-f]{7,40}")
@@ -100,3 +101,32 @@ def validate(raw: dict, target: str, work) -> dict:
         "rejected": rejected,
         "rationale": str(raw["rationale"])[: host.MAX_TEXT],
     }
+
+
+# Colors follow the word: green (good) for a fine answer, red (bad) for one that asks for action,
+# yellow (warn) for unsure, blue (note) for merely interesting.
+TONES = {"same_bug": "bad", "same_root_cause": "warn", "related": "note", "distinct": "good"}
+
+
+def cell(result: dict) -> str:
+    """The index cell: the relation, and the duplicate when there is one."""
+    return render.badge(result["relation"], TONES) + " " + render.linkify(result["duplicate_of"] or "")
+
+
+def html(result: dict, advisory: dict) -> str:
+    rejected = [[render.linkify(item["ghsa_id"]), render.linkify(item["reason"])] for item in result["rejected"]]
+    commit = result["fix_commit"]
+    return (
+        render.kv_table(
+            [
+                ("relation", render.badge(result["relation"], TONES)),
+                ("duplicate of", render.linkify(result["duplicate_of"] or "-")),
+                ("fix commit", f"<code>{escape(commit)}</code>" if commit else "-"),
+                ("evidence", render.refs(advisory, result["evidence"])),
+            ]
+        )
+        + "<h3>Rejected candidates</h3>"
+        + (render.table(["ghsa", "reason"], rejected) if rejected else "<p>none</p>")
+        + "<h3>Rationale</h3>"
+        + render.prose(result["rationale"])
+    )
