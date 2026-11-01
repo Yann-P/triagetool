@@ -1,7 +1,5 @@
 """Is this advisory a real vulnerability, given the project's security boundary?"""
 
-import argparse
-
 from triagetool import host
 
 THREAT_MODEL = ["documented", "partial", "missing"]
@@ -76,10 +74,6 @@ SCHEMA = {
 }
 
 
-def add_args(parser: argparse.ArgumentParser) -> None:
-    host.add_args(parser)
-
-
 def verdict(chain: str, in_scope: str) -> str:
     if chain in ("broken", "defect_only") or in_scope == "no":
         return "invalid"
@@ -133,7 +127,3 @@ def validate(raw: dict, target: str, work) -> dict:
         "open_questions": [str(question)[: host.MAX_LINE] for question in raw["open_questions"]],
         "rationale": str(raw["rationale"])[: host.MAX_TEXT],
     }
-
-
-def main(args: argparse.Namespace) -> None:
-    host.triage(args, PROMPT, SCHEMA, validate)

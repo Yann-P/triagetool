@@ -1,6 +1,5 @@
 """Is this advisory a duplicate of an older one in the same repo?"""
 
-import argparse
 import re
 import subprocess
 
@@ -58,10 +57,6 @@ SCHEMA = {
 }
 
 
-def add_args(parser: argparse.ArgumentParser) -> None:
-    host.add_args(parser)
-
-
 def validate(raw: dict, target: str, work) -> dict:
     """Check every field of the verdict; keep nothing else."""
     others = {path.stem for path in (work / "ghsas").glob("GHSA-*.json")} - {target}
@@ -105,7 +100,3 @@ def validate(raw: dict, target: str, work) -> dict:
         "rejected": rejected,
         "rationale": str(raw["rationale"])[: host.MAX_TEXT],
     }
-
-
-def main(args: argparse.Namespace) -> None:
-    host.triage(args, PROMPT, SCHEMA, validate)
