@@ -104,7 +104,7 @@ Shows the advisories and their verdicts in a web page.
 triagetool serve --port 8000
 ```
 
-The index lists the advisories in triage, with links to the other states and one column per tool. Each advisory has its own page with the full verdicts, where file references link to the code on GitHub. Colors follow the word: green for a fine answer (`distinct`, `valid`, `holds`), red for one that asks for action (`same_bug`, `invalid`, `fails`, a high severity), yellow for unsure, blue for merely interesting.
+The index lists the advisories in triage, with links to the other states and one column per tool. Each advisory has its own page with the full verdicts, where file references link to the code on GitHub. Colors follow the word, not the amount of work left: green for `valid`, `yes`, `holds`, `distinct`; red for `invalid`, `no`, `fails`, `same_bug` and a high severity; yellow when unsure; blue for `related` and `low`.
 
 ## AI Disclosure
 

@@ -64,11 +64,11 @@ def main(args: argparse.Namespace) -> None:
                 verdict = {"tool": name, "ran_at": store.now()}
                 try:
                     verdict["result"] = host.judge(TOOLS[name], ghsa, work)
-                    print(f"{ghsa} {name}: ok")
+                    print(f"{ghsa} {name}: ok", flush=True)
                 except host.ToolError as err:
                     verdict["error"] = str(err)
                     counts["errors"] += 1
-                    print(f"{ghsa} {name}: error, see {store.verdict_path(ghsa, name)}")
+                    print(f"{ghsa} {name}: error, see {store.verdict_path(ghsa, name)}", flush=True)
                 store.save_verdict(ghsa, verdict)
                 counts["ran"] += 1
     print(f"{counts['repos']} repos, ran {counts['ran']}, skipped {counts['skipped']}, errors {counts['errors']}")
