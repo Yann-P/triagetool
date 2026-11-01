@@ -1,4 +1,4 @@
-"""Run every tool on each repository's advisories in triage, keeping the verdicts under data/."""
+"""Run every tool on each repository's advisories in triage, keeping the verdicts under data/"""
 
 import argparse
 from pathlib import Path
