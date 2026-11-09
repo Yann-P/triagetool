@@ -1,4 +1,4 @@
-"""The web pages and the http server. GET only, no JavaScript."""
+"""The web pages and the http server. GET only."""
 
 import json
 from html import escape
@@ -20,6 +20,7 @@ TONES = {
     "published": "good",
     "error": "bad",
 }
+DATATABLES = "https://cdn.jsdelivr.net/npm/simple-datatables@10.3.0/dist"
 STYLE = """
 body { font-family: system-ui, sans-serif; line-height: 1.4; margin: 1em 2em; }
 table { border-collapse: collapse; }
@@ -38,8 +39,8 @@ pre { background: #f4f4f4; padding: 0.8em; overflow-x: auto; }
 """
 
 
-def page(title: str, body: str) -> str:
-    head = f"<meta charset='utf-8'><title>{escape(title)}</title><style>{STYLE}</style>"
+def page(title: str, body: str, head: str = "") -> str:
+    head = f"<meta charset='utf-8'><title>{escape(title)}</title><style>{STYLE}</style>{head}"
     return f"<!doctype html><html><head>{head}</head><body><h1>{escape(title)}</h1>{body}</body></html>"
 
 
@@ -89,9 +90,10 @@ def index_page(data: dict, state: str) -> str:
         + table(
             ["ghsa", "state", "severity", "repo", "created", "title", *TOOLS], [index_row(adv) for adv in advisories]
         )
-        + f"<p>{len(advisories)} advisories</p>"
+        + f"<script src='{DATATABLES}/umd/simple-datatables.js'></script>"
+        + "<script>new simpleDatatables.DataTable('table', {perPage: 50, perPageSelect: [25, 50, 100, 250]})</script>"
     )
-    return page("Advisories", body)
+    return page("Advisories", body, f"<link rel='stylesheet' href='{DATATABLES}/style.css'>")
 
 
 def verdict_section(name: str, advisory: dict, verdict) -> str:
