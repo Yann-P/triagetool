@@ -12,13 +12,14 @@ from pathlib import Path
 
 SANDBOX = Path(__file__).resolve().parent / "sandbox"
 GHSA_RE = re.compile(r"GHSA(-[2-9cfghjmpqrvwx]{4}){3}")
-REF_RE = re.compile(r"(code/[^\s:]+)(:\d+(-\d+)?)?")
+REF_RE = re.compile(r"code/([^\s:]+)(?::(\d+)(?:-(\d+))?)?")
 MAX_LINE = 400  # caps on text the agent wrote, it is untrusted
 MAX_TEXT = 800
 KEEP = [
     "ghsa_id",
     "cve_id",
     "state",
+    "severity",
     "created_at",
     "published_at",
     "withdrawn_at",
@@ -29,8 +30,12 @@ KEEP = [
 ]
 
 
+class ToolError(Exception):
+    """A failure the user has to read: a command that failed, a bad advisory, a rejected verdict."""
+
+
 def run(cmd, **kwargs):
-    """Quiet on success; dumps the combined output on failure."""
+    """Quiet on success; raises with the combined output on failure."""
     proc = subprocess.run(
         cmd,
         check=False,
@@ -41,7 +46,7 @@ def run(cmd, **kwargs):
         **kwargs,
     )
     if proc.returncode:
-        sys.exit(f"{proc.stdout}{cmd[0]} exited {proc.returncode}")
+        raise ToolError(f"{proc.stdout}{cmd[0]} exited {proc.returncode}")
     return proc
 
 
@@ -68,20 +73,41 @@ def workdir():
         yield Path(tmp)
 
 
-def fetch(repo: str, since: str, work: Path) -> None:
-    """Talks to GitHub: advisories through gh, code through git."""
-    (work / "ghsas").mkdir()
+def summary(advisory: dict, repo: str) -> dict:
+    """The few fields a batch stores and the web page shows."""
+    org, name = repo.split("/")
+    return {
+        "ghsa": advisory["ghsa_id"],
+        "org": org,
+        "repo": name,
+        "state": advisory["state"],
+        "severity": advisory["severity"] or "",
+        "cve": advisory["cve_id"] or "",
+        "title": " ".join(advisory["summary"].split()),
+        "created": advisory["created_at"][:10],
+        "updated": advisory["updated_at"][:10],
+    }
+
+
+def fetch_advisories(repo: str) -> list[dict]:
+    """Every advisory of the repository, as GitHub returns them."""
     step(f"Fetching advisories for {repo}")
     out = run(["gh", "api", f"repos/{repo}/security-advisories", "--paginate", "--slurp"]).stdout
+    return [adv for page in json.loads(out) for adv in page]
+
+
+def write_ghsas(advisories: list[dict], work: Path) -> None:
+    """One file per advisory plus an index, for the agent to read."""
+    (work / "ghsas").mkdir()
     index = []
-    for page in json.loads(out):
-        for adv in page:
-            gid = ghsa_id(adv["ghsa_id"])
-            (work / "ghsas" / f"{gid}.json").write_text(json.dumps({key: adv[key] for key in KEEP}, indent=2))
-            index.append(
-                f"{gid}  {adv['state']:9}  {adv['created_at'][:10]}  {adv['cve_id'] or '-':14}  {adv['summary']}"
-            )
+    for adv in advisories:
+        gid = ghsa_id(adv["ghsa_id"])
+        (work / "ghsas" / f"{gid}.json").write_text(json.dumps({key: adv[key] for key in KEEP}, indent=2))
+        index.append(f"{gid}  {adv['state']:9}  {adv['created_at'][:10]}  {adv['cve_id'] or '-':14}  {adv['summary']}")
     (work / "ghsas" / "index.txt").write_text("\n".join(sorted(index)) + "\n")
+
+
+def clone(repo: str, since: str, work: Path) -> None:
     step(f"Cloning {repo}")
     run(
         [
@@ -96,9 +122,17 @@ def fetch(repo: str, since: str, work: Path) -> None:
     )
 
 
+def prepare(repo: str, since: str, work: Path) -> list[dict]:
+    """Talks to GitHub: advisories through gh, code through git."""
+    advisories = fetch_advisories(repo)
+    write_ghsas(advisories, work)
+    clone(repo, since, work)
+    return advisories
+
+
 def run_sandbox(prompt: str, schema: dict, work: Path) -> dict:
     """Returns the agent's structured output. Untrusted."""
-    (work / "task").mkdir()
+    (work / "task").mkdir(exist_ok=True)
     (work / "task" / "prompt.txt").write_text(prompt)
     (work / "task" / "schema.json").write_text(json.dumps(schema))
     os.chmod(work, 0o755)  # the container reads it as uid 1000
@@ -120,25 +154,30 @@ def run_sandbox(prompt: str, schema: dict, work: Path) -> dict:
         subprocess.run([*compose, "down"], check=False, env=env, capture_output=True)
     result = json.loads(proc.stdout) if proc.stdout.startswith("{") else {}
     if "structured_output" not in result:
-        sys.exit(f"agent failed: {result.get('result') or proc.stdout + proc.stderr}")
+        raise ToolError(f"agent failed: {result.get('result') or proc.stdout + proc.stderr}")
     return result["structured_output"]
 
 
 def has_file(work: Path, ref: str) -> bool:
     """ref looks like code/path/to/file.py:42"""
     match = REF_RE.fullmatch(str(ref))
-    return bool(match) and (work / match[1]).is_file()
+    return bool(match) and (work / "code" / match[1]).is_file()
 
 
-def triage(args: argparse.Namespace, prompt: str, schema: dict, validate) -> None:
-    """Fetch, run the agent on one advisory, print the validated verdict."""
+def judge(tool, ghsa: str, work: Path) -> dict:
+    """Run one tool (the dedup or legit module) on one advisory and check its answer."""
+    raw = run_sandbox(tool.PROMPT.replace("{target}", ghsa), tool.SCHEMA, work)
+    try:
+        return tool.validate(raw, ghsa, work)
+    except ValueError as err:
+        raise ToolError(f"{json.dumps(raw, indent=2)}\nrejected: {err}") from None
+
+
+def triage(args: argparse.Namespace, tool) -> None:
+    """Fetch, run one tool on one advisory, print the validated verdict."""
     with workdir() as work:
-        fetch(args.repo, args.since, work)
+        prepare(args.repo, args.since, work)
         if not (work / "ghsas" / f"{args.ghsa}.json").exists():
-            sys.exit(f"{args.ghsa} is not an advisory of {args.repo}")
-        raw = run_sandbox(prompt.replace("{target}", args.ghsa), schema, work)
-        try:
-            verdict = validate(raw, args.ghsa, work)
-        except ValueError as err:
-            sys.exit(f"{json.dumps(raw, indent=2)}\nrejected: {err}")
+            raise ToolError(f"{args.ghsa} is not an advisory of {args.repo}")
+        verdict = judge(tool, args.ghsa, work)
     print(json.dumps(verdict, indent=2))  # for a human to read, never to auto-close on
