@@ -1,0 +1,87 @@
+body { font-family: system-ui, sans-serif; line-height: 1.5; color: #1c1c1c; margin: 0; }
+main { max-width: 62rem; margin: 0 auto 4rem; padding: 0 1.5rem; }
+
+/* in the margins beside the centered page: the list of reports on the left, the zoom levels on the right.
+   Both are grey and plain so that the reports stay the thing you look at. The grey is the lightest that still
+   reads at a contrast of 4.5 to 1 on white, and tests/test_web.py holds every text color to that. */
+#contents, #zoom { position: fixed; top: 0.75rem; width: calc((100vw - 65rem) / 2 - 1.5rem); max-width: 14rem; box-sizing: border-box; font-size: 0.78rem; line-height: 1.4; color: #6b6b6b; }
+#contents { left: 1rem; bottom: 0.75rem; overflow-y: auto; }
+#zoom { right: 1rem; }
+#contents h6, #zoom h6 { font-size: 0.78rem; font-weight: 600; color: #6b6b6b; margin: 1rem 0 0.25rem; }
+#contents .part:first-child h6, #zoom h6 { margin-top: 0; }
+#contents a, #zoom button { display: block; width: 100%; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; padding: 0.2rem 0.5rem; border: 0; border-left: 2px solid transparent; border-radius: 0; background: none; color: inherit; font-size: inherit; text-decoration: none; }
+#contents a:hover, #zoom button:hover { color: #1c1c1c; background: none; }
+#contents a.current, #zoom button:disabled { color: #1c1c1c; border-left-color: #1c1c1c; }
+#show-contents { display: none; }
+/* margins too thin to hold them: the list waits behind a button in the top row, the zoom sits in the corner */
+@media (max-width: 86rem) {
+  #show-contents { display: inline-block; }
+  #contents { display: none; top: 3.5rem; width: 16rem; max-width: none; z-index: 2; padding: 0.75rem; border: 1px solid #e4e4e4; border-radius: 8px; background: white; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); }
+  #contents.open { display: block; }
+  #zoom { top: auto; bottom: 0.75rem; width: auto; max-width: none; z-index: 2; display: flex; padding: 0.2rem; border: 1px solid #e4e4e4; border-radius: 8px; background: white; }
+  #zoom h6 { display: none; }
+  #zoom button { width: auto; border-left: 0; }
+  #zoom button:disabled { font-weight: 600; }
+}
+
+h2 { font-size: 1.15rem; margin: 2.5rem 0 0.75rem; }
+h4 { font-size: 0.85rem; font-weight: 600; color: #666; margin: 1.1rem 0 0.15rem; }
+h4 + p, h4 + ul { margin-top: 0; }
+pre { background: #f4f4f4; padding: 0.8rem; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font-size: 0.8rem; }
+.quiet { color: #666; font-size: 0.85rem; font-weight: normal; }
+
+/* one look for everything that can be clicked or typed in */
+button, select, input { font: inherit; font-size: 0.85rem; padding: 0.3rem 0.6rem; border: 1px solid #8a8a8a; border-radius: 6px; background: white; color: inherit; }
+button { cursor: pointer; }
+button:hover { background: #f1f1f1; }
+button:disabled { background: #222; border-color: #222; color: white; cursor: default; }
+
+header { position: sticky; top: 0; z-index: 1; background: white; padding: 0.5rem 0; border-bottom: 1px solid #e4e4e4; }
+header p { margin: 0.3rem 0 0; }
+header p:empty { display: none; }
+.bar .quiet { white-space: nowrap; }
+.problem { color: #a11; font-size: 0.85rem; }
+.bar { display: flex; gap: 0.5rem; align-items: center; }
+.bar form { display: contents; }
+.bar input { flex: 1; min-width: 5rem; }
+
+/* a card: the prose in one column of steady width, the facts beside it */
+article { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; column-gap: 2rem; align-items: start; scroll-margin-top: 4rem; border-left: 4px solid #bbb; border-radius: 4px; padding: 1rem 1rem 1rem 1.25rem; margin: 1rem 0; }
+article.selected { outline: 2px solid #222; outline-offset: 2px; }
+article.probably_real { border-left-color: #c33; }
+article.duplicate, article.probably_invalid { border-left-color: #3a3; }
+article.ask_reporter, article.unsure { border-left-color: #d90; }
+article h3 { font-size: 1.05rem; line-height: 1.35; margin: 0 0 0.6rem; }
+article h3 a { color: inherit; text-decoration: none; }
+article h3 a:hover { text-decoration: underline; }
+article.fresh h3::before { content: 'New'; display: block; font-size: 0.8rem; font-weight: normal; color: #b45309; }
+article p { margin: 0 0 0.6rem; }
+article form { display: flex; gap: 0.5rem; margin: 0; }
+article form input:not([type='hidden']) { flex: 1; }
+/* the foot of a card: one line to send the checker back, one line for everything else */
+article footer { display: grid; gap: 0.5rem; margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid #e4e4e4; }
+article footer .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+article footer code { margin-left: auto; font-size: 0.8rem; color: #666; }
+@media (max-width: 48rem) { article { grid-template-columns: 1fr; } }
+
+.links { list-style: none; padding: 0; margin: 0; }
+.links li { display: flex; gap: 0.6rem; margin-bottom: 0.45rem; }
+.mark { flex: none; width: 1rem; font-weight: 600; }
+.source a { font-family: ui-monospace, monospace; font-size: 0.75rem; color: #555; overflow-wrap: anywhere; }
+
+.facts { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.85rem; }
+.facts th, .facts td { text-align: left; vertical-align: top; padding: 0.35rem 0; border-bottom: 1px solid #e4e4e4; overflow-wrap: anywhere; }
+.facts th { font-weight: normal; color: #666; width: 8.5rem; }
+.facts a { white-space: nowrap; }
+
+/* every piece of prose is on the page at four lengths, and a card shows the one it is zoomed to */
+[data-text] { display: none; }
+article[data-level='tldr'] [data-text='tldr'],
+article[data-level='short'] [data-text='short'],
+article[data-level='medium'] [data-text='medium'],
+article[data-level='full'] [data-text='full'] { display: inline; }
+
+/* zoomed all the way out, a card is its title and one paragraph */
+article[data-level='tldr'] { grid-template-columns: 1fr; padding-top: 0.6rem; padding-bottom: 0.2rem; margin: 0.4rem 0; }
+article[data-level='tldr'] .facts, article[data-level='tldr'] .main > :not(h3):not(.finding) { display: none; }
+article[data-level='tldr'] h3 { margin-bottom: 0.2rem; }

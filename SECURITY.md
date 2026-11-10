@@ -6,9 +6,9 @@ Report security issues to (see my email on my GitHub profile Yann-P.)
 
 ## Two sides
 
-Your machine runs `triagetool`. It holds your GitHub credentials, fetches the advisories and the code, launches the container, sanitizes the answer into a JSON and prints it. It never executes anything the agent produces.
+Your machine runs `triagetool`. It holds your GitHub credentials, fetches the advisories and the code, launches the container, sanitizes the answer into a JSON and stores it. It never executes anything the agent produces.
 
-The container runs the agent, assume an attacker controls what happens inside it. It can read that directory, run commands as an unprivileged user on a read-only filesystem, and reach `api.anthropic.com` through a proxy that allows nothing else. It has no GitHub token, no other network access, and cannot write to your machine.
+The container runs the agents, assume an attacker controls what happens inside it. Only the clerk reads a report in triage, and it has no code and no tool but reading its own files. The checker works from the clerk's short claim. The older advisories it compares against are the original text. An agent can read the files the host prepared for it, run commands as an unprivileged user on a read-only filesystem, and reach `api.anthropic.com` through a proxy that allows nothing else. It has no GitHub token, no other network access, and cannot write to your machine.
 
 ## What can still go wrong
 

@@ -1,5 +1,3 @@
-name: triagetool
-
 services:
   proxy:                      # only thing with internet access, allowlists api.anthropic.com
     image: ubuntu/squid
@@ -8,6 +6,7 @@ services:
 
   agent:
     build: .
+    image: triagetool-agent
     depends_on: [proxy]
     networks: [internal]      # no route out except via the proxy
     read_only: true
@@ -17,11 +16,15 @@ services:
     pids_limit: 256
     mem_limit: 2g
     tmpfs: ["/tmp", "/home/node:uid=1000,gid=1000"]
-    volumes: ["${WORK}:/work:ro"]
+    volumes: ["${WORK}:/work:ro", "${CODE}:/work/code:ro"]
     environment:
       CLAUDE_CODE_OAUTH_TOKEN:    # Pro/Max plan: from `claude setup-token`. Set one of these two on the host.
       ANTHROPIC_API_KEY:          # pay-per-token key, ideally spend-limited
       HTTPS_PROXY: http://proxy:3128
+      MODEL:
+      EFFORT:
+      TOOLS:
+      TURNS:
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
       GIT_CONFIG_COUNT: "1"
       GIT_CONFIG_KEY_0: safe.directory

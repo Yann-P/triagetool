@@ -1,6 +1,6 @@
 [project]
 name = "triagetool"
-version = "0.1.0"
+version = "0.2.0"
 description = "Tools to help triaging GitHub Security Advisories with a reasonable use of AI"
 readme = "README.md"
 license = "MIT"
